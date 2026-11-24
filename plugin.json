@@ -1,0 +1,21 @@
+{
+  "id": "bronos.kozel",
+  "name": "Kozel",
+  "version": "0.1.0",
+  "api": 1,
+  "description": "Kozel, the domino game of the goat, against computer players in a panel, to play while Claude works: you and your partner against two others with the double-six set, first pair to 101. It pauses when a Claude tab of the window finishes and waits for you. Reads only the window's tab statuses; never types into a session.",
+  "author": "Oleg Bronzov",
+  "license": "MIT",
+  "main": "dist/host.js",
+  "contributes": {
+    "panels": [
+      {
+        "id": "kozel",
+        "title": "Kozel",
+        "entry": "panels/kozel.html",
+        "icon": "icons/kozel.svg",
+        "defaultZone": "right"
+      }
+    ]
+  }
+}

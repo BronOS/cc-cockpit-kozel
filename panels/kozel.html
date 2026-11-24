@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Kozel</title>
+    <!-- CSP: scripts only from this plugin's own files, so the code is in view.js (pure helpers) and kozel.js (the
+         drawing and the input). The rules stay in the host: the page never sees the others' tiles before a round ends. -->
+    <script src="../__sdk/panel.js"></script>
+    <link rel="stylesheet" href="kozel.css" />
+    <script src="view.js"></script>
+    <script src="kozel.js" defer></script>
+  </head>
+  <body>
+    <div class="kz">
+      <div class="scores" id="scores"></div>
+      <div class="board">
+        <div class="felt" id="felt" tabindex="0" aria-label="Kozel: tap a tile to play it; N starts a new game">
+          <div class="seat top" id="seat2"></div>
+          <div class="seat side left" id="seat1"></div>
+          <div class="mid" id="mid">
+            <svg class="chain" id="chain" xmlns="http://www.w3.org/2000/svg" aria-label="The chain"></svg>
+            <div class="hint" id="hint"></div>
+          </div>
+          <div class="seat side right" id="seat3"></div>
+          <div class="status" id="status" aria-live="polite"></div>
+          <div class="ends" id="ends"></div>
+          <div class="me" id="me">
+            <div class="mine" id="mine"></div>
+            <div class="hand" id="hand"></div>
+          </div>
+        </div>
+        <div class="cc-empty" id="loading"><span class="cc-spinner"></span></div>
+        <div class="cover" id="cover" hidden></div>
+      </div>
+      <div class="foot">
+        <span class="grow"></span><span>Won <b id="won">0</b></span><span>Lost <b id="lost">0</b></span>
+      </div>
+    </div>
+  </body>
+</html>

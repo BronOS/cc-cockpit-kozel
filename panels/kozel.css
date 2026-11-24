@@ -1,0 +1,554 @@
+/* Kozel panel. The page's frame, text and controls take the app's theme variables (ccc guide panels), so light and dark
+   themes and any plugin theme work. The felt and the tiles have their own palette, one per theme kind through
+   light-dark() (the SDK sets `color-scheme` on :root to the theme's kind). No state rests on a colour alone: whose move
+   it is shows as a ▶ before the name, bold text and a thick frame around that seat's tag (your hand gets a thick
+   frame); tiles you may play stand raised with a thick frame, the others sit lower and faded; the tile you picked has a
+   double frame; the ends you may choose get a dashed ring; your side's score card a ▸ and bold, the others' bar a
+   striped fill. */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--cc-bg);
+  color: var(--cc-fg);
+  font: var(--cc-text-m) / 1.4 var(--cc-font-ui);
+}
+* {
+  box-sizing: border-box;
+}
+/* Plugin pages get no reset: a class rule with a display beats the hidden attribute, so hidden always wins here. */
+[hidden] {
+  display: none !important;
+}
+
+:root {
+  /* The felt: a deep green, lighter on a light page; its text is always light. */
+  --k-felt: light-dark(#2f6b4f, #235240);
+  --k-felt2: light-dark(#285b43, #1a3e30);
+  --k-felt-fg: light-dark(#f4f8f5, #dfe6e2);
+  --k-felt-muted: light-dark(#d3e6dc, #9bb5a9);
+  --k-pill: light-dark(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.4));
+  /* Whose move and what may be played: amber. */
+  --k-turn: light-dark(#e8a317, #f0b43a);
+  --k-turn-fg: #17130a;
+  --k-pick: #ffffff;
+  /* Tiles: ivory with dark pips; the backs a warm grey. */
+  --k-tile: light-dark(#faf6ea, #efe9d6);
+  --k-tile-edge: light-dark(#8a8472, #6f6a58);
+  --k-pip: #1d1d1b;
+  --k-back: light-dark(#d9d2bb, #bdb59c);
+  --k-back-edge: rgba(0, 0, 0, 0.35);
+  --k-lift: light-dark(rgba(20, 30, 25, 0.4), rgba(0, 0, 0, 0.55));
+  /* Score bars: yours solid, theirs striped. */
+  --k-mine: light-dark(#d08f0c, #e8a317);
+  --k-other-a: light-dark(#8b8f9c, #c0c4d0);
+  --k-other-b: light-dark(#c3c6cf, #7b7f8c);
+}
+
+.kz {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 260px;
+}
+
+/* ---- the score cards: a total and a bar toward 101 per team ---- */
+
+.scores {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cc-space-2);
+  margin: var(--cc-space-2) var(--cc-space-2) 0;
+}
+.team {
+  min-width: 0;
+  background: var(--cc-surface-1);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius-l);
+  padding: 4px 10px 6px;
+}
+.team small {
+  display: block;
+  color: var(--cc-fg-muted);
+  font-size: var(--cc-text-s);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team b {
+  display: block;
+  font-size: 20px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.team.me-side small {
+  color: var(--cc-fg);
+  font-weight: 700;
+}
+.team.me-side small::before {
+  content: '▸ ';
+}
+.team .bar {
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--cc-fg) 14%, transparent);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.team .bar i {
+  display: block;
+  height: 100%;
+  background: var(--k-mine);
+}
+.team:not(.me-side) .bar i {
+  background: repeating-linear-gradient(90deg, var(--k-other-a) 0 6px, var(--k-other-b) 6px 9px);
+}
+.scores .sfoot {
+  grid-column: 1 / -1;
+  color: var(--cc-fg-muted);
+  font-size: var(--cc-text-s);
+  text-align: right;
+  margin-top: -4px;
+}
+
+/* ---- the board ---- */
+
+.board {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: var(--cc-space-2) var(--cc-space-2) var(--cc-space-1);
+}
+
+.felt {
+  --u: 30px;
+  --bu: 12px;
+  /* The side seats: two backs' width plus room for the name tag. */
+  --side: max(46px, calc(var(--bu) * 2 + 18px));
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: radial-gradient(ellipse at center, var(--k-felt), var(--k-felt2));
+  color: var(--k-felt-fg);
+  padding: var(--cc-space-2);
+  display: grid;
+  grid-template-columns: var(--side) minmax(0, 1fr) var(--side);
+  grid-template-rows: auto minmax(80px, 1fr) auto auto auto;
+  gap: 6px;
+  /* A tiny panel scrolls rather than cut the hand off; the cover stays over the whole board (it is outside). */
+  overflow: hidden auto;
+  outline: none;
+  user-select: none;
+}
+.felt:focus-visible {
+  box-shadow: 0 0 0 2px var(--cc-focus);
+}
+
+/* ---- the others: partner on top, Left and Right at the sides, as backs with a count ---- */
+
+.seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.seat.top {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.seat.left {
+  grid-column: 1;
+  grid-row: 2;
+  justify-content: center;
+}
+.seat.right {
+  grid-column: 3;
+  grid-row: 2;
+  justify-content: center;
+}
+.nm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  background: var(--k-pill);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.nm b {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nm .n,
+.mine .n {
+  color: var(--k-felt-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* Whose move: a ▶ before the name, bold, and an amber pill with a thick frame. */
+.seat.turn .nm {
+  background: var(--k-turn);
+  border-color: var(--k-felt-fg);
+  color: var(--k-turn-fg);
+}
+.seat.turn .nm b {
+  font-weight: 800;
+}
+.seat.turn .nm b::before {
+  content: '▶ ';
+  font-size: 0.85em;
+}
+.seat.turn .nm .n {
+  color: var(--k-turn-fg);
+}
+.seat.side .nm {
+  flex-direction: column;
+  gap: 0;
+  padding: 1px 4px;
+  line-height: 15px;
+  border-radius: 8px;
+}
+.seat.side .nm b::before {
+  content: none;
+}
+.seat.side.turn .nm .n::before {
+  content: '▶ ';
+  font-size: 0.85em;
+}
+.backs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+.back {
+  display: block;
+  width: var(--bu);
+  height: calc(var(--bu) * 2);
+  border-radius: 3px;
+  background: var(--k-back);
+  box-shadow: inset 0 0 0 1px var(--k-back-edge), 0 1px 1px var(--k-lift);
+}
+.seat.side .backs {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.seat.side .back {
+  width: calc(var(--bu) * 2);
+  height: var(--bu);
+}
+
+/* ---- the chain: a snake that fits the board, scrolling inside it when it cannot ---- */
+
+.mid {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  padding: 4px;
+}
+/* Auto margins centre the snake and, unlike centring alignment, never push its top out of reach when it scrolls. */
+.chain {
+  display: block;
+  margin: auto;
+  flex: none;
+  overflow: visible;
+}
+.hint {
+  margin: auto;
+  color: var(--k-felt-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.face {
+  fill: var(--k-tile);
+  stroke: var(--k-tile-edge);
+  stroke-width: 0.04;
+}
+.split {
+  stroke: var(--k-tile-edge);
+  stroke-width: 0.03;
+}
+.pip {
+  fill: var(--k-pip);
+}
+.chain .tile-g.new {
+  animation: arrive 0.25s ease-out;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+}
+/* An end you may choose: a thick dashed ring that takes a click. */
+.endmark {
+  fill: rgba(255, 255, 255, 0.12);
+  stroke: var(--k-pick);
+  stroke-width: 0.1;
+  stroke-dasharray: 0.16 0.1;
+  cursor: pointer;
+}
+.endmark:hover {
+  fill: rgba(255, 255, 255, 0.3);
+}
+
+/* ---- the status, the end buttons and your hand ---- */
+
+.status {
+  grid-column: 1 / -1;
+  min-height: 20px;
+  font-size: 13px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.status small {
+  color: var(--k-felt-muted);
+  font-size: 1em;
+}
+.ends {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--cc-space-2);
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: var(--cc-control-h);
+}
+.ends button {
+  font-weight: 700;
+}
+.me {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mine {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.me.turn .mine b::before {
+  content: '▶ ';
+  font-size: 0.85em;
+}
+.me.turn .mine b {
+  font-weight: 800;
+}
+.me .hand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Room for a raised tile under a lowered one of the row above. */
+  gap: 12px;
+  padding: 10px 8px 6px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+}
+/* Your move: the hand gets a thick frame. */
+.me.turn .hand {
+  border-color: var(--k-turn);
+}
+.me .row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.tile {
+  /* The app's stylesheet gives every button the control height; a tile button is as tall as its tile. */
+  display: block;
+  height: auto;
+  min-height: 0;
+  line-height: 0;
+  margin: 0;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: default;
+  transition: transform 0.12s;
+}
+.tile svg {
+  display: block;
+  filter: drop-shadow(0 1px 1px var(--k-lift));
+}
+/* Playable: raised, in a thick amber frame. Picked (it fits both ends): a white double frame. Not playable now: lower
+   and faded. */
+.tile.ok {
+  cursor: pointer;
+  border-color: var(--k-turn);
+  transform: translateY(-5px);
+}
+.tile.ok:hover,
+.tile.ok:focus-visible {
+  transform: translateY(-9px);
+}
+.tile.sel {
+  border: 3px double var(--k-pick);
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-9px);
+}
+.tile.no {
+  opacity: 0.45;
+  transform: translateY(3px);
+}
+.tile:focus-visible {
+  outline: 2px solid var(--cc-focus);
+  outline-offset: 1px;
+}
+.tile.shake {
+  animation: shake 0.25s;
+}
+@keyframes shake {
+  25% {
+    translate: -3px 0;
+  }
+  75% {
+    translate: 3px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+  .chain .tile-g.new {
+    animation: none;
+  }
+  .tile.shake {
+    animation: none;
+    outline: 2px solid var(--cc-status-ended);
+  }
+}
+
+.board .cc-empty {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---- the covers: the pause, a round's result, the game's end ---- */
+
+.cover {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--cc-bg) 97%, transparent);
+  border: 1px solid var(--cc-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cc-space-2);
+  text-align: center;
+  padding: var(--cc-space-3);
+  overflow: auto;
+}
+/* Auto margins centre the content and keep its top reachable when it scrolls. */
+.cover > :first-child {
+  margin-top: auto;
+}
+.cover > :last-child {
+  margin-bottom: auto;
+}
+.cover .big {
+  font-size: var(--cc-text-l);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.cover .goat {
+  font-size: 44px;
+  line-height: 1;
+}
+.cover .what {
+  color: var(--cc-fg-muted);
+  overflow-wrap: anywhere;
+  max-width: 40em;
+}
+.cover .tot {
+  color: var(--cc-fg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cover .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cc-status-waiting);
+  display: inline-block;
+  margin-right: 6px;
+}
+.cover .buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--cc-space-2);
+}
+.cover .sheet {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.cover table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.cover td {
+  padding: 3px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+.cover td.who {
+  white-space: nowrap;
+}
+.cover tr.us td.who {
+  font-weight: 700;
+}
+.cover td.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-width: 30px;
+}
+.cover td.tiles svg {
+  display: block;
+}
+.cover td.pips {
+  text-align: right;
+  font-weight: 700;
+}
+/* Who went out or held the fewest pips: a framed word, not a shade. */
+.cover .mark {
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid currentColor;
+  border-radius: 8px;
+  padding: 0 5px;
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cc-space-1) var(--cc-space-3);
+  padding: 0 var(--cc-space-3) var(--cc-space-2);
+  color: var(--cc-fg-muted);
+  font-size: var(--cc-text-s);
+  font-variant-numeric: tabular-nums;
+}
+.foot b {
+  color: var(--cc-fg);
+}
+.foot .grow {
+  flex: 1;
+}

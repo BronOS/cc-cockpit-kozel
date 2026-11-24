@@ -1,0 +1,8 @@
+{
+  "name": "cc-cockpit-kozel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kozel: the domino game of the goat against computer players in a panel for cc-cockpit",
+  "license": "MIT",
+  "scripts": { "test": "node --test test/" }
+}
